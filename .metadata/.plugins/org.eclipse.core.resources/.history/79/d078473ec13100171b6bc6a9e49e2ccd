@@ -1,0 +1,447 @@
+package com.rsmith.models;
+import java.util.HashMap;
+import java.util.List;
+
+import com.rsmith.server.Client;
+
+public class Game implements Runnable {
+	
+	private GameBoard board;
+	private String[][] gameBoard;
+	public Client blackPlayer;
+	public Client whitePlayer;
+	public Client currentPlayer;
+	
+	public Game(Client blackPlayer, Client whitePlayer){
+	    this.blackPlayer = blackPlayer;
+	    this.whitePlayer = whitePlayer;
+	    this.currentPlayer = whitePlayer;
+	}
+	
+	private void broadcast(String message){
+	    blackPlayer.sendMessage(message);
+	    whitePlayer.sendMessage(message);
+	}
+	
+	private void gameStart(){	
+		
+		broadcast("Welcome to Chess");
+		String[][] initialBoardState = {
+			{"r", "n", "b", "q", "k", "b", "n", "r"},
+			{"p", "p", "p", "p", "p", "p", "p", "p"},
+			{"-", "-", "-", "-", "-", "-", "-", "-"},
+			{"-", "-", "-", "-", "-", "-", "-", "-"},
+			{"-", "-", "-", "-", "-", "-", "-", "-"},
+			{"-", "-", "-", "-", "-", "-", "-", "-"},
+			{"P", "P", "P", "P", "P", "P", "P", "P"},
+			{"R", "N", "B", "Q", "K", "B", "N", "R"}
+		};
+		
+		gameBoard = initialBoardState;
+		board = new GameBoard(initialBoardState);
+		board.setInitialPieceLocations();
+	}
+	
+	private void printBlankLines(int lines){
+	    String space = "          ";
+	    for(int i = 0; i < lines; i++){
+		broadcast(space);
+	    }
+	}
+	
+	private void printBoard(){		
+		printBlankLines(50);
+		printLogo();
+		printHeader();
+		printRows();
+		printFooter();
+	}
+	
+	private void printLogo(){
+	    String logo = "Frostburg State University:Chess";
+	    broadcast(logo);
+	}
+	private void printFooter(){
+	    String footer = "    _______________";
+	    broadcast(footer);
+	}
+	
+	private void printHeader(){
+	    String header =    "    A B C D E F G H";
+	    broadcast(header);
+	    String underline = "    _______________";
+	    broadcast(underline);
+	}
+	
+	private void printRows(){
+	    int rowCounter = 1;
+	    for(String[] row : gameBoard){
+		
+		String line = String.valueOf(rowCounter++) + " | ";
+		line += getRowAsString(row);
+		line += " | ";
+		broadcast(line);
+	    }
+	}
+	
+	private String getRowAsString(String[] row){
+	    String line = "";
+	    
+	    for(String col : row){
+		line += (col + " ");
+	    }
+	    
+	    return line;
+	}
+	
+	private boolean checkInput(String input){
+		if(input.length() != 2){
+			return false;
+		}
+		String firstChar = input.substring(0, 1);
+		String secondChar = input.substring(1, input.length());
+		
+		if(!firstChar.matches("^[A-Z]+$") || !secondChar.matches("^[0-9]+$")){
+			return false;
+		}
+		char xCoord = input.charAt(0);
+		int yCoord = Integer.valueOf(input.substring(1, input.length()));
+		if(xCoord < 'A' || xCoord > 'H' || yCoord < 1 || yCoord > 8){
+			return false;
+		}
+		else{
+			return true;
+		}
+	}
+	
+	private String getCurrentPlayerInput(){
+	    currentPlayer.clearInputMessages();
+	    
+	    String response = "";
+	    
+	    boolean inputValid = false;
+	    
+	    while(inputValid == false){
+		List<String> inputList = currentPlayer.getMessages();
+		
+		if(inputIsValid(inputList)){
+		    inputValid = true;
+		    response = inputList.get(0);
+		}else{
+		    try {
+			Thread.sleep(1000);
+		    } catch (InterruptedException e) {
+			e.printStackTrace();
+		    }
+		}
+	    }
+	    
+	    return response;
+	}
+	
+	private boolean inputIsValid(List<String> inputs){
+	    boolean valid = false;
+	    
+	    if(inputs != null && inputs.size() > 0){
+		valid = checkInput(inputs.get(0));
+		if(valid == false){
+		    currentPlayer.sendMessage("Invalid input format!");
+		    currentPlayer.clearInputMessages();
+		}
+	    }
+	    
+	    return valid;
+	}
+	private void getMove(){
+		currentPlayer.sendMessage("Please input piece location:");
+		String start = getCurrentPlayerInput();
+		
+		String end = "";
+		if(start != " "){
+			if(checkInput(start)){
+				currentPlayer.sendMessage("Move piece to where?");
+				end = getCurrentPlayerInput();
+			}
+			else{
+				currentPlayer.sendMessage("Invalid input. ");
+				getMove();
+			}
+		}
+		else {
+		    	currentPlayer.sendMessage("There is no piece there.");
+			getMove();
+		}
+		
+		if(validateMove(board, start, end)){
+			move(start, end);
+		}
+		else{
+			getMove();
+		}
+	}
+	
+	private void move(String from, String to){
+		int startX = getXCoord(from);
+		int startY = getYCoord(from);
+		String piece = gameBoard[startY-1][startX-1];
+		gameBoard[startY-1][startX-1] = "-";
+		
+		int endX = getXCoord(to);
+		int endY = getYCoord(to);
+		gameBoard[endY-1][endX-1] = piece;
+	}
+	
+	private boolean validateMove(GameBoard board, String from, String to){
+		GamePiece piece = board.getPieceLocations().get(from);
+		piece.findValidMoves(from);
+		if(piece.getValidMoves().contains(to)){
+			if(!piece.getType().equals("Knight")){
+				return checkBlocked(board, from, to);
+			}
+		}
+		return false;
+	}
+	
+	private boolean isKingAlive(){
+		boolean blackKing = false;
+		boolean whiteKing = false;
+		for(String[] row: gameBoard){
+			for(String piece: row){
+				if(piece.equals("k")){
+					blackKing = true;
+				}
+				if(piece.equals("K")){
+					whiteKing = true;
+				}
+			}
+		}
+		return blackKing && whiteKing;
+	}
+	
+	public static int[] stringToCoords(String input){
+		int x = getXCoord(input);
+		int y = getYCoord(input);
+		int[] coords = {x, y};
+		return coords;
+	}
+	
+	public static int getXCoord(String input){
+		return getXCoordMap().get(input.charAt(0));
+	}
+	
+	public static int getYCoord(String input){
+		return Integer.valueOf(input.substring(1, input.length()));
+	}
+	
+	public static String coordsToString(int[] coords){
+		String str = "";
+		//Never really got to use a switch-case before. Might as well...
+		switch(coords[0]){
+		case 1: str+="A";
+				break;
+		case 2: str+="B";
+				break;
+		case 3: str+="C";
+				break;
+		case 4: str+="D";
+				break;
+		case 5: str+="E";
+				break;
+		case 6: str+="F";
+				break;
+		case 7: str+="G";
+				break;
+		case 8: str+="H";
+				break;
+		}
+		str+=String.valueOf(coords[1]);
+		return str;
+	}
+	
+	public static HashMap<Character, Integer> getXCoordMap(){
+		HashMap<Character, Integer> xCoordMap = new HashMap<Character, Integer>();
+		xCoordMap.put('A', 1);
+		xCoordMap.put('B', 2);
+		xCoordMap.put('C', 3);
+		xCoordMap.put('D', 4);
+		xCoordMap.put('E', 5);
+		xCoordMap.put('F', 6);
+		xCoordMap.put('G', 7);
+		xCoordMap.put('H', 8);
+		return xCoordMap;
+	}
+
+	@Override
+	public void run() {
+	    gameStart();
+	    printBoard();
+	    updateTurn();
+	    while(isKingAlive()){
+		getMove();
+		printBoard();
+		updateTurn();
+	    }
+	}
+	
+	private void updateTurn(){
+	    
+	    if(currentPlayer.equals(blackPlayer)){
+		currentPlayer = whitePlayer;
+		blackPlayer.sendMessage("Waiting on other player to move....");
+	    }else{
+		currentPlayer = blackPlayer;
+		whitePlayer.sendMessage("Waiting on other player to move...");
+	    }
+	}
+	
+	private boolean checkBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		if(start[0] < end[0] && start[1] == end[1]){
+			return checkRightBlocked(board, from, to);
+		}
+		else if(start[0] > end[0] && start[1] == end[1]){
+			return checkLeftBlocked(board, from, to);
+		}
+		else if(start[0] == end[0] && start[1] > end[1]){
+			return checkUpBlocked(board, from, to);
+		}
+		else if(start[0] == end[0] && start[1] < end[1]){
+			return checkDownBlocked(board, from, to);
+		}
+		else if(start[0] < end[0] && start[1] > end[1]){
+			return checkUpRightBlocked(board, from, to);
+		}
+		else if(start[0] > end[0] && start[1] > end[1]){
+			return checkUpLeftBlocked(board, from, to);
+		}
+		else if(start[0] < end[0] && start[1] < end[1]){
+			return checkDownRightBlocked(board, from, to);
+		}
+		else if(start[0] > end[0] && start[1] < end[1]){
+			return checkDownLeftBlocked(board, from, to);
+		}
+		
+		return true;
+	}
+	
+	private boolean checkRightBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		for(int i = start[0]; i <= end[0]; i++){
+			int[] checkedSpace = {i, start[1]};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean checkLeftBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		for(int i = start[0]; i >= end[0]; i--){
+			int[] checkedSpace = {i, start[1]};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean checkUpBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		for(int j = start[1]; j >= end[1]; j--){
+			int[] checkedSpace = {start[0], j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+		}
+		return true;
+	}
+	
+	private boolean checkDownBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		for(int j = start[1]; j <= end[1]; j++){
+			int[] checkedSpace = {start[0], j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+		}
+		return true;
+	}
+	
+	private boolean checkUpRightBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		int i = start[0];
+		int j = start[1];
+		
+		while(start[0] != end[0] && start[1] != end[1]){
+			int[] checkedSpace = {i, j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+			
+			i++;
+			j--;
+		}
+		return false;
+	}
+	
+	private boolean checkUpLeftBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		int i = start[0];
+		int j = start[1];
+		
+		while(start[0] != end[0] && start[1] != end[1]){
+			int[] checkedSpace = {i, j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+			
+			i--;
+			j--;
+		}
+		return false;
+	}
+	
+	private boolean checkDownRightBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		int i = start[0];
+		int j = start[1];
+		
+		while(start[0] != end[0] && start[1] != end[1]){
+			int[] checkedSpace = {i, j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+			
+			i++;
+			j++;
+		}
+		return false;
+	}
+	
+	private boolean checkDownLeftBlocked(GameBoard board, String from, String to){
+		int[] start = stringToCoords(from);
+		int[] end = stringToCoords(to);
+		int i = start[0];
+		int j = start[1];
+		
+		while(start[0] != end[0] && start[1] != end[1]){
+			int[] checkedSpace = {i, j};
+			if(board.getPieceLocations().get(coordsToString(checkedSpace)) != null){
+				return true;
+			}
+			
+			i--;
+			j++;
+		}
+		return false;
+	}
+}

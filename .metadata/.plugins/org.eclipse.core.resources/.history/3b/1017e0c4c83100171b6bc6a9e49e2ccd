@@ -1,0 +1,83 @@
+package com.rsmith.models;
+import java.util.HashMap;
+import com.rsmith.models.Game;
+
+public class GameBoard {
+	private String[][] boardState;
+	private HashMap<String, GamePiece> pieceLocations;
+	
+	public GameBoard(String[][] boardState){
+		this.boardState = boardState;
+		this.pieceLocations = new HashMap<String, GamePiece>();
+	}
+	
+	private String[][] getBoardState(){
+		return boardState;
+	}
+	
+	private void setBoardState(String[][] boardState){
+		this.boardState = boardState;
+	}
+	
+	private void printBoardState(){
+		for(String[] row : boardState){
+			
+		}
+	}
+	
+	public HashMap<String, GamePiece> getPieceLocations(){
+		return pieceLocations;
+	}
+	
+	public void setInitialPieceLocations(){
+		pieceLocations.put("A7", new Pawn("white", "A7"));
+		pieceLocations.put("B7", new Pawn("white", "B7"));
+		pieceLocations.put("C7", new Pawn("white", "C7"));
+		pieceLocations.put("D7", new Pawn("white", "D7"));
+		pieceLocations.put("E7", new Pawn("white", "E7"));
+		pieceLocations.put("F7", new Pawn("white", "F7"));
+		pieceLocations.put("G7", new Pawn("white", "G7"));
+		pieceLocations.put("H7", new Pawn("white", "H7"));
+		
+		pieceLocations.put("A8", new Rook("white", "A8"));
+		pieceLocations.put("B8", new Knight("white", "B8"));
+		pieceLocations.put("C8", new Bishop("white", "C8"));
+		pieceLocations.put("D8", new Queen("white", "D8"));
+		pieceLocations.put("E8", new King("white", "E8"));
+		pieceLocations.put("F8", new Bishop("white", "F8"));
+		pieceLocations.put("G8", new Knight("white", "G8"));
+		pieceLocations.put("H8", new Rook("white", "H8"));
+		
+		pieceLocations.put("A2", new Pawn("black", "A2"));
+		pieceLocations.put("B2", new Pawn("black", "B2"));
+		pieceLocations.put("C2", new Pawn("black", "C2"));
+		pieceLocations.put("D2", new Pawn("black", "D2"));
+		pieceLocations.put("E2", new Pawn("black", "E2"));
+		pieceLocations.put("F2", new Pawn("black", "F2"));
+		pieceLocations.put("G2", new Pawn("black", "G2"));
+		pieceLocations.put("H2", new Pawn("black", "H2"));
+		
+		pieceLocations.put("A1", new Rook("black", "A1"));
+		pieceLocations.put("B1", new Knight("black", "B1"));
+		pieceLocations.put("C1", new Bishop("black", "C1"));
+		pieceLocations.put("D1", new Queen("black", "D1"));
+		pieceLocations.put("E1", new King("black", "E1"));
+		pieceLocations.put("F1", new Bishop("black", "F1"));
+		pieceLocations.put("G1", new Knight("black", "G1"));
+		pieceLocations.put("H1", new Rook("black", "H1"));
+	}
+	
+	public void setPiece(String coord, GamePiece piece){
+		pieceLocations.put(coord, piece);
+	}
+	
+	public void removePiece(String coord){
+		pieceLocations.remove(coord);
+	}
+	
+	public void movePiece(String from, String to){
+		GamePiece piece = pieceLocations.get(from);
+		removePiece(from);
+		setPiece(to, piece);
+	}
+}

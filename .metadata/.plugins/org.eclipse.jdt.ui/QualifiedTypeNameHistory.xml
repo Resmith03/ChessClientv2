@@ -14,4 +14,6 @@
 <fullyQualifiedTypeName name="java.io.IOException"/>
 <fullyQualifiedTypeName name="java.net.Inet4Address"/>
 <fullyQualifiedTypeName name="java.net.InetAddress"/>
+<fullyQualifiedTypeName name="com.rsmith.models.GameBoard"/>
+<fullyQualifiedTypeName name="com.sun.javafx.collections.MappingChange.Map"/>
 </qualifiedTypeNameHistroy>
